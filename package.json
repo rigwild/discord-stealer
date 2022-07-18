@@ -1,0 +1,12 @@
+{
+  "name": "discord-stealer",
+  "private": true,
+  "main": "lib.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7",
+    "win-dpapi": "^1.1.0"
+  }
+}
