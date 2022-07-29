@@ -3,7 +3,7 @@
   "private": true,
   "main": "lib.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node runner.js"
   },
   "dependencies": {
     "node-fetch": "^2.6.7",

